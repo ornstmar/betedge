@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>BetEdge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pitch: #0a3d2a; --pitch-dark: #072b1e; --line: #14523a;
+    --gold: #f2c744; --white: #f4f1e8; --muted: #8fb3a3; --red: #d9634c;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(ellipse at 50% -20%, #11553c 0%, var(--pitch) 45%, var(--pitch-dark) 100%);
+    color: var(--white); font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh; padding: 16px; max-width: 720px; margin: 0 auto;
+  }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 3px;
+       color: var(--gold); text-align: center; text-shadow: 0 0 24px rgba(242,199,68,.35); }
+  .sub { text-align: center; color: var(--muted); font-size: 11px; margin-bottom: 20px; }
+  h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px;
+       color: var(--gold); margin: 22px 0 8px; }
+  label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px;
+          text-transform: uppercase; letter-spacing: 1px; }
+  select {
+    width: 100%; padding: 10px; background: var(--pitch-dark); color: var(--white);
+    border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 14px;
+  }
+  .row { display: flex; gap: 10px; } .row > div { flex: 1; }
+  .toggle { display: flex; align-items: center; gap: 10px; margin: 14px 0; cursor: pointer;
+            font-size: 13px; user-select: none; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--gold); }
+  button#go {
+    width: 100%; padding: 14px; margin-top: 8px; background: var(--gold); color: #1b1500;
+    border: 0; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+    letter-spacing: 3px; cursor: pointer; box-shadow: 0 0 30px rgba(242,199,68,.25);
+  }
+  button#go:disabled { opacity: .4; cursor: default; }
+  .card { background: rgba(7,43,30,.75); border: 1px solid var(--line); border-radius: 10px;
+          padding: 16px; margin-top: 16px; }
+  .scoreboard { display: flex; justify-content: space-between; align-items: center;
+                font-size: 15px; gap: 8px; }
+  .scoreboard .team { flex: 1; text-align: center; }
+  .scoreboard .xg { color: var(--gold); font-size: 26px; font-weight: 600; }
+  .scoreboard .team small { color: var(--muted); font-size: 10px; display: block; margin-top: 2px; }
+  .bars { display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin: 14px 0 4px;
+          font-size: 12px; font-weight: 600; color: #06251a; }
+  .bars div { display: flex; align-items: center; justify-content: center; min-width: 34px; }
+  .b-h { background: var(--gold); } .b-d { background: var(--muted); } .b-a { background: #e0dcce; }
+  .legend { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .stat { background: var(--pitch-dark); border: 1px solid var(--line); border-radius: 6px;
+          padding: 10px; }
+  .stat b { color: var(--gold); font-size: 18px; display: block; }
+  .stat span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  table.grid { border-collapse: collapse; margin: 10px auto 0; font-size: 11px; }
+  table.grid td, table.grid th { width: 46px; height: 34px; text-align: center;
+    border: 1px solid var(--line); color: var(--white); }
+  table.grid th { color: var(--muted); font-weight: 400; background: var(--pitch-dark); }
+  .note { font-size: 10px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .warn { font-size: 10px; color: var(--red); margin-top: 8px; line-height: 1.6; }
+  #loading { text-align: center; color: var(--muted); padding: 30px 0; display: none; }
+</style>
+</head>
+<body>
+  <h1>BETEDGE</h1>
+  <div class="sub">POISSON &times; MONTE CARLO MATCH PREDICTOR &mdash; 10,000 SIMULATIONS</div>
+
+  <label>Competition</label>
+  <select id="league"></select>
+
+  <div id="crossLeagues" class="row" style="display:none">
+    <div><label>Home team's league</label><select id="leagueA"></select></div>
+    <div><label>Away team's league</label><select id="leagueB"></select></div>
+  </div>
+
+  <div class="row">
+    <div><label>Home team</label><select id="teamA"></select></div>
+    <div><label>Away team</label><select id="teamB"></select></div>
+  </div>
+
+  <label class="toggle"><input type="checkbox" id="neutral">
+    Neutral venue (no home advantage &mdash; e.g. World Cup 2026)</label>
+
+  <button id="go">SIMULATE MATCH</button>
+  <div id="loading">running 10,000 matches&hellip;</div>
+  <div id="results"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = { index: null, cache: {}, CROSS: "CROSS" };
+
+async function loadJSON(path) {
+  if (state.cache[path]) return state.cache[path];
+  const r = await fetch("data/" + path + "?v=" + Date.now());
+  if (!r.ok) throw new Error("Failed to load " + path);
+  const j = await r.json();
+  state.cache[path] = j;
+  return j;
+}
+
+function fillSelect(sel, items, valueFn, labelFn) {
+  sel.innerHTML = "";
+  for (const it of items) {
+    const o = document.createElement("option");
+    o.value = valueFn(it); o.textContent = labelFn(it);
+    sel.appendChild(o);
+  }
+}
+
+async function init() {
+  state.index = await loadJSON("index.json");
+  const leagues = state.index.leagues.slice();
+  leagues.push({ id: state.CROSS, name: "Champions League / Cross-league", teams: 0 });
+  fillSelect($("league"), leagues, l => l.id, l => l.name);
+  const clubs = state.index.leagues.filter(l => l.id !== "INT");
+  fillSelect($("leagueA"), clubs, l => l.id, l => l.name);
+  fillSelect($("leagueB"), clubs, l => l.id, l => l.name);
+  $("league").addEventListener("change", onLeague);
+  $("leagueA").addEventListener("change", () => fillTeams("A"));
+  $("leagueB").addEventListener("change", () => fillTeams("B"));
+  $("go").addEventListener("click", simulate);
+  await onLeague();
+}
+
+function isCross() { return $("league").value === state.CROSS; }
+
+async function onLeague() {
+  const cross = isCross();
+  $("crossLeagues").style.display = cross ? "flex" : "none";
+  if ($("league").value === "INT") $("neutral").checked = true;
+  if (cross) { $("leagueB").selectedIndex = Math.min(1, $("leagueB").options.length - 1); }
+  await fillTeams("A"); await fillTeams("B");
+}
+
+async function fillTeams(side) {
+  const lid = isCross() ? $("league" + side).value : $("league").value;
+  const data = await loadJSON(lid + ".json");
+  const names = Object.keys(data.teams).sort();
+  fillSelect($("team" + side), names, n => n, n => n);
+  if (!isCross() && side === "B" && names.length > 1) $("teamB").selectedIndex = 1;
+}
+
+// ---- model ----------------------------------------------------------------
+function lambdas(dA, tA, dB, tB, neutral, strengthRatio, sameLeague) {
+  const CLAMP = x => Math.max(0.15, Math.min(4.5, x));
+  let lh, la;
+  if (neutral || !sameLeague) {
+    const muA = dA.mu_n !== undefined ? dA.mu_n : (dA.mu_h + dA.mu_a) / 2;
+    const muB = dB.mu_n !== undefined ? dB.mu_n : (dB.mu_h + dB.mu_a) / 2;
+    const mu = (muA + muB) / 2;
+    lh = mu * tA.att_n * tB.def_n;
+    la = mu * tB.att_n * tA.def_n;
+    if (!neutral) {           // cross-league with home advantage
+      const ha = dA.mu_h / ((dA.mu_h + dA.mu_a) / 2);
+      const aa = dA.mu_a / ((dA.mu_h + dA.mu_a) / 2);
+      lh *= ha; la *= aa;
+    }
+  } else {
+    lh = dA.mu_h * tA.att_h * tB.def_a;
+    la = dA.mu_a * tB.att_a * tA.def_h;
+  }
+  if (strengthRatio !== 1) {   // cross-league strength adjustment
+    const r = Math.sqrt(strengthRatio);
+    lh *= r; la /= r;
+  }
+  return [CLAMP(lh), CLAMP(la)];
+}
+
+function poisson(lambda) {
+  const L = Math.exp(-lambda);
+  let k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L);
+  return k - 1;
+}
+
+// Round percentages so they sum to exactly 100.0 (largest remainder)
+function roundTo100(values, decimals = 1) {
+  const f = Math.pow(10, decimals), target = 100 * f;
+  const scaled = values.map(v => v * f);
+  const floors = scaled.map(Math.floor);
+  let rem = target - floors.reduce((a, b) => a + b, 0);
+  const order = scaled.map((v, i) => [v - floors[i], i]).sort((a, b) => b[0] - a[0]);
+  for (let i = 0; i < order.length && rem > 0; i++, rem--) floors[order[i][1]]++;
+  return floors.map(v => v / f);
+}
+
+async function simulate() {
+  $("go").disabled = true; $("loading").style.display = "block";
+  $("results").innerHTML = "";
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const cross = isCross();
+    const lidA = cross ? $("leagueA").value : $("league").value;
+    const lidB = cross ? $("leagueB").value : $("league").value;
+    const dA = await loadJSON(lidA + ".json"), dB = await loadJSON(lidB + ".json");
+    const nameA = $("teamA").value, nameB = $("teamB").value;
+    const tA = dA.teams[nameA], tB = dB.teams[nameB];
+    if (!tA || !tB || nameA === nameB && lidA === lidB) throw new Error("Pick two different teams.");
+    const S = state.index.league_strength || {};
+    const ratio = cross ? ((S[lidA] || 0.8) / (S[lidB] || 0.8)) : 1;
+    const neutral = $("neutral").checked;
+    const [lh, la] = lambdas(dA, tA, dB, tB, neutral, ratio, lidA === lidB);
+
+    const N = 10000, GRID = 7;
+    let hw = 0, dr = 0, aw = 0, over = 0, btts = 0;
+    const grid = Array.from({ length: GRID }, () => new Array(GRID).fill(0));
+    const scores = {};
+    for (let i = 0; i < N; i++) {
+      const h = poisson(lh), a = poisson(la);
+      if (h > a) hw++; else if (h === a) dr++; else aw++;
+      if (h + a > 2.5) over++;
+      if (h > 0 && a > 0) btts++;
+      grid[Math.min(h, GRID - 1)][Math.min(a, GRID - 1)]++;
+      const key = h + "-" + a;
+      scores[key] = (scores[key] || 0) + 1;
+    }
+    const [ph, pd, pa] = roundTo100([hw / N * 100, dr / N * 100, aw / N * 100]);
+    const top = Object.entries(scores).sort((x, y) => y[1] - x[1]).slice(0, 3);
+    render({ nameA, nameB, lh, la, ph, pd, pa, over, btts, grid, top, N,
+             tA, tB, dA, dB, neutral, cross, lidA, lidB });
+  } catch (e) {
+    $("results").innerHTML = '<div class="card warn">' + e.message + "</div>";
+  } finally {
+    $("go").disabled = false; $("loading").style.display = "none";
+  }
+}
+
+function heat(v, max) {
+  const t = max ? v / max : 0;
+  return "background: rgba(242,199,68," + (t * 0.85).toFixed(3) + ");" +
+         (t > 0.5 ? "color:#1b1500;font-weight:600;" : "");
+}
+
+function sample(t) {
+  let s = (t.n_home + t.n_away) + " matches";
+  if (t.n_shot) s += ", " + t.n_shot + " with shot data";
+  if (t.n_sb) s += ", " + t.n_sb + " with shot x/y (StatsBomb)";
+  return s;
+}
+
+function render(r) {
+  const maxCell = Math.max(...r.grid.flat());
+  let gridHtml = "<table class='grid'><tr><th></th>";
+  for (let a = 0; a < 7; a++) gridHtml += "<th>" + (a === 6 ? "6+" : a) + "</th>";
+  gridHtml += "</tr>";
+  for (let h = 0; h < 7; h++) {
+    gridHtml += "<tr><th>" + (h === 6 ? "6+" : h) + "</th>";
+    for (let a = 0; a < 7; a++) {
+      const pct = r.grid[h][a] / r.N * 100;
+      gridHtml += "<td style='" + heat(r.grid[h][a], maxCell) + "'>" +
+                  (pct >= 0.05 ? pct.toFixed(1) : "&middot;") + "</td>";
+    }
+    gridHtml += "</tr>";
+  }
+  gridHtml += "</table>";
+
+  const topStr = r.top.map(([s, c]) => s + " (" + (c / r.N * 100).toFixed(1) + "%)").join(" &nbsp;&bull;&nbsp; ");
+  const upd = (r.dA.updated || "").slice(0, 10);
+  const val = (state.cache["INT.json"] && state.cache["INT.json"].xg_validation) || null;
+
+  $("results").innerHTML =
+    '<div class="card"><div class="scoreboard">' +
+      '<div class="team">' + r.nameA + '<span class="xg"> ' + r.lh.toFixed(2) + ' </span><small>expected goals</small></div>' +
+      '<div style="color:var(--muted)">vs</div>' +
+      '<div class="team">' + r.nameB + '<span class="xg"> ' + r.la.toFixed(2) + ' </span><small>expected goals</small></div>' +
+    '</div>' +
+    '<div class="bars">' +
+      '<div class="b-h" style="width:' + r.ph + '%">' + r.ph + '%</div>' +
+      '<div class="b-d" style="width:' + r.pd + '%">' + r.pd + '%</div>' +
+      '<div class="b-a" style="width:' + r.pa + '%">' + r.pa + '%</div>' +
+    '</div>' +
+    '<div class="legend"><span>' + r.nameA + ' win</span><span>draw</span><span>' + r.nameB + ' win</span></div>' +
+    '<div class="stats">' +
+      '<div class="stat"><b>' + (r.over / r.N * 100).toFixed(1) + '%</b><span>over 2.5 goals</span></div>' +
+      '<div class="stat"><b>' + (r.btts / r.N * 100).toFixed(1) + '%</b><span>both teams to score</span></div>' +
+      '<div class="stat" style="grid-column:1/3"><b style="font-size:14px">' + topStr + '</b><span>most likely scorelines</span></div>' +
+    '</div>' +
+    '<h2>All scorelines (%)</h2>' + gridHtml +
+    '<div class="note">Sample sizes &mdash; ' + r.nameA + ': ' + sample(r.tA) + ' &nbsp;|&nbsp; ' +
+      r.nameB + ': ' + sample(r.tB) + '<br>Data updated: ' + upd +
+      (val ? ' &nbsp;|&nbsp; custom xG model (shot x/y): r=' + val.corr_vs_statsbomb_xg + ' vs StatsBomb xG' : '') +
+      (r.cross ? '<br>Cross-league matchup: ratings adjusted by static league-strength factors (rough approximation).' : '') +
+    '</div>' +
+    '<div class="warn">For entertainment only. This model knows nothing about injuries, lineups or motivation. ' +
+      'Bookmakers are usually right &mdash; nothing here is a guarantee.</div></div>';
+}
+
+init().catch(e => { $("results").innerHTML = '<div class="card warn">' + e.message + '</div>'; });
+</script>
+</body>
+</html>
