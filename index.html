@@ -6,87 +6,91 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>BetEdge</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --pitch: #0a3d2a; --pitch-dark: #072b1e; --line: #14523a;
-    --gold: #f2c744; --white: #f4f1e8; --muted: #8fb3a3; --red: #d9634c;
+    --bg: #131a23; --card: #1c2532; --card2: #212d3d; --line: rgba(255,255,255,.08);
+    --blue: #2d6bff; --blue-soft: rgba(45,107,255,.14);
+    --green: #27ae60; --red: #e05b5b;
+    --text: #f2f4f7; --muted: #8896ab;
+    /* legacy aliases used across the app */
+    --pitch: var(--bg); --pitch-dark: var(--card2); --gold: var(--blue);
+    --white: var(--text);
   }
   * { box-sizing: border-box; margin: 0; }
   body {
-    background: radial-gradient(ellipse at 50% -20%, #11553c 0%, var(--pitch) 45%, var(--pitch-dark) 100%);
-    color: var(--white); font-family: 'IBM Plex Mono', monospace;
-    min-height: 100vh; padding: 16px; max-width: 720px; margin: 0 auto;
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh; padding: 20px 16px 60px; max-width: 720px; margin: 0 auto;
   }
-  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 3px;
-       color: var(--gold); text-align: center; text-shadow: 0 0 24px rgba(242,199,68,.35); }
-  .sub { text-align: center; color: var(--muted); font-size: 11px; margin-bottom: 20px; }
-  h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px;
-       color: var(--gold); margin: 22px 0 8px; }
-  label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px;
-          text-transform: uppercase; letter-spacing: 1px; }
-  select {
-    width: 100%; padding: 10px; background: var(--pitch-dark); color: var(--white);
-    border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 14px;
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: -.5px; text-align: center; }
+  h1 .accent { color: var(--blue); }
+  .sub { text-align: center; color: var(--muted); font-size: 12px; margin: 4px 0 24px; }
+  h2 { font-size: 17px; font-weight: 700; margin: 26px 0 8px; }
+  label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin: 12px 0 5px; }
+  select, input[type=text] {
+    width: 100%; padding: 10px 12px; background: var(--card); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; font-family: inherit; font-size: 14px;
   }
   .row { display: flex; gap: 10px; } .row > div { flex: 1; }
   .toggle { display: flex; align-items: center; gap: 10px; margin: 14px 0; cursor: pointer;
-            font-size: 13px; user-select: none; }
-  .toggle input { width: 18px; height: 18px; accent-color: var(--gold); }
+            font-size: 13px; color: var(--muted); user-select: none; }
+  .toggle input { width: 17px; height: 17px; accent-color: var(--blue); }
   button#go {
-    width: 100%; padding: 14px; margin-top: 8px; background: var(--gold); color: #1b1500;
-    border: 0; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 24px;
-    letter-spacing: 3px; cursor: pointer; box-shadow: 0 0 30px rgba(242,199,68,.25);
+    width: 100%; padding: 13px; margin-top: 8px; background: var(--blue); color: #fff;
+    border: 0; border-radius: 8px; font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer;
   }
+  button#go:hover { filter: brightness(1.1); }
   button#go:disabled { opacity: .4; cursor: default; }
-  .card { background: rgba(7,43,30,.75); border: 1px solid var(--line); border-radius: 10px;
-          padding: 16px; margin-top: 16px; }
+  button.secondary {
+    width: 100%; padding: 12px; margin-top: 12px; background: var(--card2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; font-family: inherit; font-size: 14px;
+    font-weight: 600; cursor: pointer;
+  }
+  button.secondary:hover { border-color: var(--blue); color: var(--blue); }
+  button.secondary:disabled { opacity: .4; cursor: default; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px; margin-top: 14px; }
   .scoreboard { display: flex; justify-content: space-between; align-items: center;
-                font-size: 15px; gap: 8px; }
+                font-size: 15px; font-weight: 600; gap: 8px; }
   .scoreboard .team { flex: 1; text-align: center; }
-  .scoreboard .xg { color: var(--gold); font-size: 26px; font-weight: 600; }
-  .scoreboard .team small { color: var(--muted); font-size: 10px; display: block; margin-top: 2px; }
-  .bars { display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin: 14px 0 4px;
-          font-size: 12px; font-weight: 600; color: #06251a; }
-  .bars div { display: flex; align-items: center; justify-content: center; min-width: 34px; }
-  .b-h { background: var(--gold); } .b-d { background: var(--muted); } .b-a { background: #e0dcce; }
+  .scoreboard .xg { color: var(--text); font-size: 28px; font-weight: 700; display: block; }
+  .scoreboard .team small { color: var(--muted); font-size: 11px; font-weight: 400;
+                            display: block; margin-top: 2px; }
+  .bars { display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin: 14px 0 5px;
+          font-size: 12px; font-weight: 600; color: #fff; }
+  .bars div { display: flex; align-items: center; justify-content: center; min-width: 36px; }
+  .b-h { background: var(--green); } .b-d { background: #3a4657; } .b-a { background: var(--red); }
   .legend { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-  .stat { background: var(--pitch-dark); border: 1px solid var(--line); border-radius: 6px;
-          padding: 10px; }
-  .stat b { color: var(--gold); font-size: 18px; display: block; }
-  .stat span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  table.grid { border-collapse: collapse; margin: 10px auto 0; font-size: 11px; }
+  .stat { background: var(--card2); border: 1px solid var(--line); border-radius: 8px;
+          padding: 10px 12px; }
+  .stat b { color: var(--text); font-size: 20px; font-weight: 700; display: block; }
+  .stat span { font-size: 11px; color: var(--muted); }
+  table.grid { border-collapse: collapse; margin: 10px auto 0; font-size: 11px;
+               font-variant-numeric: tabular-nums; }
   table.grid td, table.grid th { width: 46px; height: 34px; text-align: center;
-    border: 1px solid var(--line); color: var(--white); }
-  table.grid th { color: var(--muted); font-weight: 400; background: var(--pitch-dark); }
-  .note { font-size: 10px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
-  .warn { font-size: 10px; color: var(--red); margin-top: 8px; line-height: 1.6; }
+    border: 1px solid var(--line); color: var(--text); }
+  table.grid th { color: var(--muted); font-weight: 500; background: var(--card2); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .note a, a { color: var(--blue); }
+  .warn { font-size: 11px; color: var(--red); margin-top: 10px; line-height: 1.6; }
   #loading { text-align: center; color: var(--muted); padding: 30px 0; display: none; }
-  input[type=text] {
-    width: 100%; padding: 10px; background: var(--pitch-dark); color: var(--white);
-    border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 13px;
-  }
-  button.secondary {
-    width: 100%; padding: 12px; margin-top: 10px; background: transparent; color: var(--gold);
-    border: 1px solid var(--gold); border-radius: 8px; font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px; letter-spacing: 2px; cursor: pointer;
-  }
-  button.secondary:disabled { opacity: .4; cursor: default; }
-  table.vb { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
-  table.vb th { color: var(--muted); font-weight: 400; text-transform: uppercase;
-    letter-spacing: 1px; font-size: 9px; padding: 6px 4px; border-bottom: 1px solid var(--line);
-    text-align: left; }
-  table.vb td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  .ev-pos { color: var(--gold); font-weight: 600; }
+  table.vb { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px;
+             font-variant-numeric: tabular-nums; }
+  table.vb th { color: var(--muted); font-weight: 500; font-size: 10px; padding: 6px 4px;
+    border-bottom: 1px solid var(--line); text-align: left; }
+  table.vb td { padding: 8px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .ev-pos { color: var(--green); font-weight: 700; }
   .ev-neg { color: var(--muted); }
-  .vb-match { color: var(--white); }
-  .vb-match small { color: var(--muted); display: block; font-size: 9px; }
+  .vb-match { color: var(--text); font-weight: 500; }
+  .vb-match small { color: var(--muted); display: block; font-size: 10px; font-weight: 400; }
 </style>
 </head>
 <body>
-  <h1>BETEDGE</h1>
-  <div class="sub">POISSON &times; MONTE CARLO MATCH PREDICTOR &mdash; 10,000 SIMULATIONS</div>
+  <h1>Bet<span class="accent">Edge</span></h1>
+  <div class="sub">Poisson &times; Monte Carlo match predictor &mdash; 10,000 simulations per match</div>
 
   <label>Competition</label>
   <select id="league"></select>
@@ -104,20 +108,20 @@
   <label class="toggle"><input type="checkbox" id="neutral">
     Neutral venue (no home advantage &mdash; e.g. World Cup 2026)</label>
 
-  <button id="go">SIMULATE MATCH</button>
+  <button id="go">Simulate match</button>
   <div id="loading">running 10,000 matches&hellip;</div>
   <div id="results"></div>
 
-  <h2 style="margin-top:28px">Value bets</h2>
+  <h2 style="margin-top:30px">Value bets</h2>
   <div class="card">
     <div class="note" style="margin-top:0">Fetches upcoming fixtures and real odds for the selected
       competition, compares the market with this model and flags positive expected value (EV).
       Uses your own free API key from
-      <a href="https://the-odds-api.com" target="_blank" rel="noopener" style="color:var(--gold)">the-odds-api.com</a>
+      <a href="https://the-odds-api.com" target="_blank" rel="noopener" >the-odds-api.com</a>
       (500 free requests/month, one request per scan). The key is stored only in this browser.</div>
     <label>The Odds API key</label>
     <input type="text" id="apiKey" placeholder="paste your key here" autocomplete="off">
-    <button class="secondary" id="findBets">SCAN FOR VALUE BETS</button>
+    <button class="secondary" id="findBets">Scan for value bets</button>
     <div id="vbResults"></div>
     <div class="warn">Not betting advice. Bookmakers are usually right &mdash; an "edge" here is more
       likely a model error than free money. The model ignores injuries, lineups, motivation and news.
@@ -268,8 +272,8 @@ async function simulate() {
 
 function heat(v, max) {
   const t = max ? v / max : 0;
-  return "background: rgba(242,199,68," + (t * 0.85).toFixed(3) + ");" +
-         (t > 0.5 ? "color:#1b1500;font-weight:600;" : "");
+  return "background: rgba(45,107,255," + (t * 0.85).toFixed(3) + ");" +
+         (t > 0.5 ? "color:#fff;font-weight:600;" : "");
 }
 
 function sample(t) {
