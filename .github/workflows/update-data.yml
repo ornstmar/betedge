@@ -1,0 +1,29 @@
+name: Update data
+
+on:
+  schedule:
+    - cron: "0 5 * * 1,4"   # Mondays & Thursdays 05:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch StatsBomb shot data (cached in repo-less runner, ~5 min)
+        run: python3 pipeline/fetch_statsbomb.py
+      - name: Build ratings
+        run: python3 pipeline/build_data.py
+      - name: Commit updated data
+        run: |
+          git config user.name "kickoff-odds-bot"
+          git config user.email "actions@github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Update data $(date -u +%F)"
+          git push
