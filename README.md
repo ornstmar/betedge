@@ -33,6 +33,12 @@ Runs entirely on free data and free hosting (GitHub Pages + GitHub Actions).
    over/under 2.5, BTTS, and a full scoreline grid.
 7. **Cross-league mode** (Champions League) uses static league-strength factors —
    a rough, documented approximation.
+8. **Value bets** — fetches real odds from [The Odds API](https://the-odds-api.com)
+   (bring your own free key, 500 requests/month, stored only in your browser),
+   removes the bookmaker vig to get market fair-value probabilities, compares them
+   with the model, and shows EV (`model prob × best odds − 1`) plus a capped
+   quarter-Kelly stake suggestion. Big visible disclaimers: bookmakers are usually
+   right, and a positive EV is more likely model error than free money.
 
 ## Data sources (all free)
 
@@ -41,6 +47,7 @@ Runs entirely on free data and free hosting (GitHub Pages + GitHub Actions).
 | [football-data.co.uk](https://www.football-data.co.uk) | Club results + shots/SOT, 9 leagues, 8 seasons |
 | [martj42/international_results](https://github.com/martj42/international_results) | National team results incl. neutral-venue flag |
 | [StatsBomb open-data](https://github.com/statsbomb/open-data) | Shot x/y coordinates for the xG model |
+| [The Odds API](https://the-odds-api.com) | Live odds for the value-bet scanner (own free key) |
 
 ## Repository layout
 

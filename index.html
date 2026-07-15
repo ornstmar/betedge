@@ -63,6 +63,25 @@
   .note { font-size: 10px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
   .warn { font-size: 10px; color: var(--red); margin-top: 8px; line-height: 1.6; }
   #loading { text-align: center; color: var(--muted); padding: 30px 0; display: none; }
+  input[type=text] {
+    width: 100%; padding: 10px; background: var(--pitch-dark); color: var(--white);
+    border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 13px;
+  }
+  button.secondary {
+    width: 100%; padding: 12px; margin-top: 10px; background: transparent; color: var(--gold);
+    border: 1px solid var(--gold); border-radius: 8px; font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 2px; cursor: pointer;
+  }
+  button.secondary:disabled { opacity: .4; cursor: default; }
+  table.vb { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+  table.vb th { color: var(--muted); font-weight: 400; text-transform: uppercase;
+    letter-spacing: 1px; font-size: 9px; padding: 6px 4px; border-bottom: 1px solid var(--line);
+    text-align: left; }
+  table.vb td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .ev-pos { color: var(--gold); font-weight: 600; }
+  .ev-neg { color: var(--muted); }
+  .vb-match { color: var(--white); }
+  .vb-match small { color: var(--muted); display: block; font-size: 9px; }
 </style>
 </head>
 <body>
@@ -88,6 +107,23 @@
   <button id="go">SIMULATE MATCH</button>
   <div id="loading">running 10,000 matches&hellip;</div>
   <div id="results"></div>
+
+  <h2 style="margin-top:28px">Value bets</h2>
+  <div class="card">
+    <div class="note" style="margin-top:0">Fetches upcoming fixtures and real odds for the selected
+      competition, compares the market with this model and flags positive expected value (EV).
+      Uses your own free API key from
+      <a href="https://the-odds-api.com" target="_blank" rel="noopener" style="color:var(--gold)">the-odds-api.com</a>
+      (500 free requests/month, one request per scan). The key is stored only in this browser.</div>
+    <label>The Odds API key</label>
+    <input type="text" id="apiKey" placeholder="paste your key here" autocomplete="off">
+    <button class="secondary" id="findBets">SCAN FOR VALUE BETS</button>
+    <div id="vbResults"></div>
+    <div class="warn">Not betting advice. Bookmakers are usually right &mdash; an "edge" here is more
+      likely a model error than free money. The model ignores injuries, lineups, motivation and news.
+      Kelly stakes shown are quarter-Kelly and assume the model is correct, which it isn't.
+      Never bet money you can't afford to lose. 18+.</div>
+  </div>
 
 <script>
 "use strict";
@@ -290,7 +326,210 @@ function render(r) {
       'Bookmakers are usually right &mdash; nothing here is a guarantee.</div></div>';
 }
 
-init().catch(e => { $("results").innerHTML = '<div class="card warn">' + e.message + '</div>'; });
+// ---- value bets (The Odds API) ---------------------------------------------
+const SPORT_KEYS = {
+  E0: "soccer_epl", E1: "soccer_efl_champ", SP1: "soccer_spain_la_liga",
+  D1: "soccer_germany_bundesliga", I1: "soccer_italy_serie_a",
+  F1: "soccer_france_ligue_one", N1: "soccer_netherlands_eredivisie",
+  P1: "soccer_portugal_primeira_liga", BRA: "soccer_brazil_campeonato",
+  INT: "soccer_fifa_world_cup", CROSS: "soccer_uefa_champs_league",
+};
+
+// The Odds API team names -> football-data.co.uk names
+const ODDS_ALIASES = {
+  "manchester city": "Man City", "manchester united": "Man United",
+  "wolverhampton wanderers": "Wolves", "tottenham hotspur": "Tottenham",
+  "brighton and hove albion": "Brighton", "newcastle united": "Newcastle",
+  "nottingham forest": "Nott'm Forest", "west ham united": "West Ham",
+  "leeds united": "Leeds", "leicester city": "Leicester", "afc bournemouth": "Bournemouth",
+  "atletico madrid": "Ath Madrid", "athletic bilbao": "Ath Bilbao", "real betis": "Betis",
+  "real sociedad": "Sociedad", "celta vigo": "Celta", "deportivo alaves": "Alaves",
+  "rayo vallecano": "Vallecano", "espanyol": "Espanol", "real oviedo": "Oviedo",
+  "bayern munich": "Bayern Munich", "borussia dortmund": "Dortmund",
+  "borussia monchengladbach": "M'gladbach", "bayer leverkusen": "Leverkusen",
+  "eintracht frankfurt": "Ein Frankfurt", "vfb stuttgart": "Stuttgart",
+  "vfl wolfsburg": "Wolfsburg", "sc freiburg": "Freiburg", "1. fc union berlin": "Union Berlin",
+  "union berlin": "Union Berlin", "fsv mainz 05": "Mainz", "1. fsv mainz 05": "Mainz",
+  "tsg hoffenheim": "Hoffenheim", "fc augsburg": "Augsburg", "werder bremen": "Werder Bremen",
+  "1. fc heidenheim": "Heidenheim", "fc st. pauli": "St Pauli", "st pauli": "St Pauli",
+  "vfl bochum": "Bochum", "1. fc koln": "FC Koln", "fc cologne": "FC Koln",
+  "hamburger sv": "Hamburg", "holstein kiel": "Holstein Kiel",
+  "inter milan": "Inter", "internazionale": "Inter", "ac milan": "Milan", "as roma": "Roma",
+  "atalanta bc": "Atalanta", "hellas verona": "Verona",
+  "paris saint germain": "Paris SG", "paris saint-germain": "Paris SG",
+  "olympique marseille": "Marseille", "olympique lyonnais": "Lyon", "as monaco": "Monaco",
+  "losc lille": "Lille", "lille osc": "Lille", "stade rennais": "Rennes", "ogc nice": "Nice",
+  "rc lens": "Lens", "stade de reims": "Reims", "toulouse fc": "Toulouse", "fc nantes": "Nantes",
+  "rc strasbourg": "Strasbourg", "montpellier hsc": "Montpellier", "stade brestois": "Brest",
+  "aj auxerre": "Auxerre", "angers sco": "Angers", "fc metz": "Metz", "fc lorient": "Lorient",
+  "psv eindhoven": "PSV Eindhoven", "psv": "PSV Eindhoven", "afc ajax": "Ajax",
+  "sporting lisbon": "Sp Lisbon", "sporting cp": "Sp Lisbon", "fc porto": "Porto",
+  "sl benfica": "Benfica", "sc braga": "Sp Braga", "vitoria guimaraes": "Guimaraes",
+  "south korea": "South Korea", "usa": "United States", "united states of america": "United States",
+  "ivory coast": "Ivory Coast", "czech republic": "Czech Republic",
+};
+
+function normName(s) {
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[.'’-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function bigrams(s) {
+  const t = s.replace(/ /g, ""), out = [];
+  for (let i = 0; i < t.length - 1; i++) out.push(t.slice(i, i + 2));
+  return out;
+}
+
+function dice(a, b) {
+  const A = bigrams(a), B = bigrams(b);
+  if (!A.length || !B.length) return 0;
+  const setB = new Map();
+  B.forEach(g => setB.set(g, (setB.get(g) || 0) + 1));
+  let hits = 0;
+  A.forEach(g => { const c = setB.get(g); if (c) { hits++; setB.set(g, c - 1); } });
+  return 2 * hits / (A.length + B.length);
+}
+
+function matchTeam(oddsName, teamNames) {
+  const n = normName(oddsName);
+  if (ODDS_ALIASES[n] && teamNames.includes(ODDS_ALIASES[n])) return ODDS_ALIASES[n];
+  const norms = teamNames.map(normName);
+  let i = norms.indexOf(n);
+  if (i >= 0) return teamNames[i];
+  // token containment (e.g. "fulham fc" ~ "fulham")
+  const cands = teamNames.filter((t, j) =>
+    n.includes(norms[j]) || norms[j].includes(n));
+  if (cands.length === 1) return cands[0];
+  // fuzzy fallback
+  let best = null, bestScore = 0;
+  teamNames.forEach((t, j) => {
+    const s = dice(n, norms[j]);
+    if (s > bestScore) { bestScore = s; best = t; }
+  });
+  return bestScore >= 0.55 ? best : null;
+}
+
+function poissonPmf(lambda, kMax) {
+  const p = [Math.exp(-lambda)];
+  for (let k = 1; k <= kMax; k++) p.push(p[k - 1] * lambda / k);
+  return p;
+}
+
+function exactProbs(lh, la) {
+  const K = 12, ph = poissonPmf(lh, K), pa = poissonPmf(la, K);
+  let H = 0, D = 0, A = 0;
+  for (let h = 0; h <= K; h++)
+    for (let a = 0; a <= K; a++) {
+      const p = ph[h] * pa[a];
+      if (h > a) H += p; else if (h === a) D += p; else A += p;
+    }
+  const s = H + D + A;
+  return [H / s, D / s, A / s];
+}
+
+function kellyQuarter(p, odds) {
+  const b = odds - 1;
+  if (b <= 0) return 0;
+  return Math.max(0, (p * odds - 1) / b) / 4;
+}
+
+async function findValueBets() {
+  const btn = $("findBets"), out = $("vbResults");
+  const key = $("apiKey").value.trim();
+  if (!key) { out.innerHTML = '<div class="warn">Enter your API key first (free at the-odds-api.com).</div>'; return; }
+  try { localStorage.setItem("oddsApiKey", key); } catch (e) { /* private mode */ }
+  const lid = $("league").value;
+  const sport = SPORT_KEYS[lid];
+  const dataLid = lid === state.CROSS ? null : lid;
+  btn.disabled = true;
+  out.innerHTML = '<div class="note">fetching odds&hellip;</div>';
+  try {
+    if (!dataLid) throw new Error("Value bet scan works per league - pick a league (not cross-league mode).");
+    const d = await loadJSON(dataLid + ".json");
+    const teamNames = Object.keys(d.teams);
+    const url = "https://api.the-odds-api.com/v4/sports/" + sport +
+      "/odds/?regions=eu&markets=h2h&oddsFormat=decimal&apiKey=" + encodeURIComponent(key);
+    const resp = await fetch(url);
+    if (resp.status === 401) throw new Error("Invalid API key (401).");
+    if (resp.status === 429) throw new Error("API quota exceeded (429) - free tier is 500 requests/month.");
+    if (!resp.ok) throw new Error("Odds API error " + resp.status);
+    const remaining = resp.headers.get("x-requests-remaining");
+    const events = await resp.json();
+    if (!events.length) { out.innerHTML = '<div class="note">No upcoming fixtures with odds found for this competition.</div>'; return; }
+
+    const neutral = $("neutral").checked;
+    const rows = [], unmatched = [];
+    for (const ev of events.slice(0, 20)) {
+      const home = matchTeam(ev.home_team, teamNames);
+      const away = matchTeam(ev.away_team, teamNames);
+      if (!home || !away || home === away) { unmatched.push(ev.home_team + " v " + ev.away_team); continue; }
+      // best odds + average implied probability across bookmakers
+      const best = { H: [0, ""], D: [0, ""], A: [0, ""] };
+      const sums = { H: 0, D: 0, A: 0 }; let nb = 0;
+      for (const bk of ev.bookmakers || []) {
+        const mkt = (bk.markets || []).find(m => m.key === "h2h");
+        if (!mkt) continue;
+        const o = {};
+        for (const oc of mkt.outcomes) {
+          if (oc.name === ev.home_team) o.H = oc.price;
+          else if (oc.name === ev.away_team) o.A = oc.price;
+          else o.D = oc.price;
+        }
+        if (!(o.H && o.D && o.A)) continue;
+        nb++;
+        const over = 1 / o.H + 1 / o.D + 1 / o.A;   // remove the vig
+        for (const k of ["H", "D", "A"]) {
+          sums[k] += (1 / o[k]) / over;
+          if (o[k] > best[k][0]) best[k] = [o[k], bk.title];
+        }
+      }
+      if (!nb) continue;
+      const fair = { H: sums.H / nb, D: sums.D / nb, A: sums.A / nb };
+      const [lh, la] = lambdas(d, d.teams[home], d, d.teams[away], neutral, 1, true);
+      const probs = exactProbs(lh, la);
+      const model = { H: probs[0], D: probs[1], A: probs[2] };
+      for (const [k, label] of [["H", home + " win"], ["D", "Draw"], ["A", away + " win"]]) {
+        const odds = best[k][0];
+        if (!odds) continue;
+        rows.push({
+          match: home + " v " + away,
+          time: (ev.commence_time || "").slice(0, 16).replace("T", " "),
+          label, odds, book: best[k][1],
+          fair: fair[k], model: model[k],
+          ev: model[k] * odds - 1,
+          stake: kellyQuarter(model[k], odds),
+        });
+      }
+    }
+    rows.sort((a, b) => b.ev - a.ev);
+    const fmt = p => (p * 100).toFixed(1) + "%";
+    let html = '<table class="vb"><tr><th>Bet</th><th>Best odds</th><th>Market</th><th>Model</th><th>EV</th><th>&frac14;-Kelly</th></tr>';
+    for (const r of rows.slice(0, 25)) {
+      const cls = r.ev > 0 ? "ev-pos" : "ev-neg";
+      html += "<tr><td class='vb-match'>" + r.label + "<small>" + r.match + " &middot; " + r.time + " UTC</small></td>" +
+        "<td>" + r.odds.toFixed(2) + "<small style='display:block;color:var(--muted);font-size:9px'>" + r.book + "</small></td>" +
+        "<td>" + fmt(r.fair) + "</td><td>" + fmt(r.model) + "</td>" +
+        "<td class='" + cls + "'>" + (r.ev > 0 ? "+" : "") + fmt(r.ev) + "</td>" +
+        "<td>" + (r.ev > 0 ? fmt(Math.min(r.stake, 0.05)) + " of bankroll" : "&mdash;") + "</td></tr>";
+    }
+    html += "</table>";
+    html += '<div class="note">Market = vig-free average across bookmakers. EV = model probability &times; best odds &minus; 1. ' +
+      "Positive EV means the model disagrees with the market - trust carefully." +
+      (remaining ? " API requests left this month: " + remaining + "." : "") +
+      (unmatched.length ? "<br>Could not match: " + unmatched.join(", ") : "") + "</div>";
+    out.innerHTML = html;
+  } catch (e) {
+    out.innerHTML = '<div class="warn">' + e.message + "</div>";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+init().then(() => {
+  try { $("apiKey").value = localStorage.getItem("oddsApiKey") || ""; } catch (e) { /* ignore */ }
+  $("findBets").addEventListener("click", findValueBets);
+}).catch(e => { $("results").innerHTML = '<div class="card warn">' + e.message + '</div>'; });
 </script>
 </body>
 </html>
